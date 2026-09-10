@@ -32,8 +32,9 @@ def main() -> None:
         "mm_datasets": [],
         "lerobot_datasets": [{
             "repo_id": repo_id,
-            # LeRobot expects root to be the dataset directory containing meta/.
-            "root": str(dataset),
+            # PointAct's MultiLeRobotDataset resolves the final data path as
+            # Path(root) / repo_id, so root must be the dataset's parent.
+            "root": str(dataset.parent),
             "class_name": "LeRobotPointCloudDataset",
             "select_video_keys": ["observation.images.d455"],
             "video_key_ids_for_vlm": [0],

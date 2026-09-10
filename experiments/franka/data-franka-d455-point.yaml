@@ -3,7 +3,8 @@ mm_datasets: []
 lerobot_datasets:
   - repo_id: small_glass_uncap_pointact
     # Relative paths are resolved after train_pointact.sh enters the repository root.
-    root: robot_data/franka/small_glass_uncap_pointact
+    # MultiLeRobotDataset appends repo_id to this parent directory.
+    root: robot_data/franka
     class_name: LeRobotPointCloudDataset
     select_video_keys: [observation.images.d455]
     video_key_ids_for_vlm: [0]

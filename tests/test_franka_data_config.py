@@ -23,7 +23,8 @@ def test_generated_config_uses_selected_dataset(tmp_path, monkeypatch):
 
     config = yaml.safe_load(output.read_text())
     entry = config["lerobot_datasets"][0]
-    assert entry["root"] == str(dataset)
+    assert entry["root"] == str(dataset.parent)
+    assert Path(entry["root"]) / entry["repo_id"] == dataset
     assert entry["repo_id"] == "chosen_dataset"
     assert entry["select_state_keys"] == []
     assert entry["state_action_norm_file"].startswith(str(dataset))
