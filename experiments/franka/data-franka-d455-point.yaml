@@ -1,0 +1,20 @@
+mm_datasets: []
+
+lerobot_datasets:
+  - repo_id: small_glass_uncap_pointact
+    # Relative paths are resolved after train_pointact.sh enters the repository root.
+    root: robot_data/franka
+    class_name: LeRobotPointCloudDataset
+    select_video_keys: [observation.images.d455]
+    video_key_ids_for_vlm: [0]
+    # No wrist camera and no robot-state input. Geometry comes from D455 RGB-D.
+    select_state_keys: []
+    select_action_keys: [action]
+    converted_rot_type: rot6d
+    is_delta_action: false
+    is_action_eef: true
+    points_workspace: null
+    max_npoints: 4096
+    augment_pc_rot: 0
+    point_cloud_dirname: points_d455
+    state_action_norm_file: robot_data/franka/small_glass_uncap_pointact/robot_state_action_stats/rot6d_points_d455.json

@@ -193,6 +193,8 @@ class RobotPointProcessorBase(RobotProcessorBase):
         return bool(values)
 
     def _filter_points_by_workspace(self, point_cloud: np.ndarray, workspace: dict) -> np.ndarray:
+        if workspace is None:
+            return point_cloud
         point_mask = (
             (point_cloud[..., 0] > workspace['X_BBOX'][0])
             & (point_cloud[..., 0] < workspace['X_BBOX'][1])
@@ -301,7 +303,11 @@ class RobotPointProcessorBase(RobotProcessorBase):
         else:
             point_cloud = self._build_point_cloud_from_cameras(mini_batch, repo_id, workspace)
 
-        point_cloud = self._voxel_downsample_point_cloud(point_cloud, voxel_size=voxel_size)
+        # The Franka RGB-D websocket path uses exactly the same deterministic voxelization
+        # as the offline converter. Do not voxelize that cloud a second time at inference.
+        is_prevoxelized = bool(mini_batch.get("observation.points.voxelized", False))
+        if not is_prevoxelized:
+            point_cloud = self._voxel_downsample_point_cloud(point_cloud, voxel_size=voxel_size)
         if remove_arm and (not has_existing_point_cloud or "observation.robot_joints_bbox" in mini_batch):
             point_cloud = self._remove_robot_arm_points(point_cloud, mini_batch)
         point_cloud = self._subsample_point_cloud(point_cloud, self.robot_config["max_npoints"][repo_id])

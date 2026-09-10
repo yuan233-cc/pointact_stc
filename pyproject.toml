@@ -48,6 +48,7 @@ dependencies = [
     "msgpack_numpy",
     "pyzmq",
     "tyro",
+    "websockets>=13.0",
 
     # PyTorch runtime
     "torch==2.7.0",

@@ -88,7 +88,14 @@ class VLAEncDec3DProcessor(RobotPointProcessorBase):
         batch_states = []
 
         state_keys = [x for x in batch.keys() if x.startswith(OBS_STATE)]
-        batch_size = len(batch[state_keys[0]])
+        if state_keys:
+            batch_size = len(batch[state_keys[0]])
+        elif "observation.points" in batch:
+            batch_size = len(batch["observation.points"])
+        elif "task" in batch:
+            batch_size = len(batch["task"])
+        else:
+            raise ValueError("cannot infer robot batch size: no state, point cloud, or task")
         repo_ids = self._resolve_repo_ids(batch, batch_size)
 
         batch_points, batch_point_centers = [], []

@@ -1,0 +1,17 @@
+{
+  "width": 1280,
+  "height": 720,
+  "intrinsics": null,
+  "camera_to_base": null,
+  "depth_scale_m": 0.001,
+  "min_depth_m": 0.15,
+  "max_depth_m": 1.5,
+  "pixel_stride": 1,
+  "voxel_size_m": 0.01,
+  "max_points_before_training": 4096,
+  "workspace": {
+    "X_BBOX": [0.2, 0.9],
+    "Y_BBOX": [-0.6, 0.6],
+    "Z_BBOX": [-0.05, 0.8]
+  }
+}
