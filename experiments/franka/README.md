@@ -75,15 +75,24 @@ are intentionally disabled, matching deployment.
 
 ## 4. Start the websocket policy server
 
+Run the policy server on the GPU machine from the PointAct environment. `--checkpoint` must
+point to a trained PointAct checkpoint directory (not the Concerto `.pth` initialization file),
+and `--training-manifest` must come from the processed dataset used for that training run.
+
 ```bash
+cd /path/to/pointact_stc
+conda activate pointact
+
 python scripts/serve_franka_ws.py \
-  --checkpoint /path/to/checkpoint-final-N \
+  --checkpoint /path/to/pointact_checkpoints/checkpoint-N \
   --calibration experiments/franka/calibration.json \
-  --training-manifest robot_data/franka/small_glass_uncap_pointact/franka_rgbd_manifest.json \
-  --host 0.0.0.0 --port 8765
+  --training-manifest /path/to/small_glass_uncap_pointact/franka_rgbd_manifest.json \
+  --host 0.0.0.0 \
+  --port 8765
 ```
 
-The server accepts the existing `robot_ws_client` JSON protocol and returns `action_chunk`
+Keep this process running, and use the GPU machine's reachable IP address as `SERVER_IP` below.
+The server accepts the dedicated `pointact_ws_client_node` JSON protocol and returns `action_chunk`
 messages containing absolute `[x,y,z,qx,qy,qz,qw]` targets and normalized gripper commands.
 On an inference exception it returns a one-step hold command by default.
 
@@ -96,9 +105,15 @@ cd /path/to/ros_ml_ws
 colcon build --packages-select robot_ws_client --symlink-install
 source install/local_setup.bash
 ros2 launch robot_ws_client pointact_ws_client.launch.py \
-  server_uri:=ws://SERVER_IP:8765 dry_run:=true
+  server_uri:=ws://SERVER_IP:8765 \
+  dry_run:=true \
+  gripper_type:=robotiq \
+  execute_steps:=5 \
+  max_target_distance_m:=0.05
 ```
 
 Confirm the server reports a small RGB/depth timestamp skew, inspect
 `/pointact_ws_client/debug_target_pose`, and validate workspace/action bounds before changing
-`dry_run:=false`. Keep `command_hz:=10.0` to match the training data.
+`dry_run:=false`. Increase `execute_steps` toward 40 only after closed-loop tests are stable.
+Keep `command_hz:=10.0` in `pointact_ws_client.yaml` to match the training data. Use
+`gripper_type:=franka` instead if the robot has a Franka Hand rather than a Robotiq gripper.
