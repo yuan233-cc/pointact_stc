@@ -136,15 +136,25 @@ class LeRobotDatasetMixin(BaseLeRobotDataset):
         feature = self.meta.features[feature_key]
         feature["shape"] = (feature["shape"][0] + shape_delta,)
 
-        motor_names = feature.get("names", {}).get("motors")
+        names = feature.get("names")
+        if isinstance(names, dict):
+            motor_names = names.get("motors")
+        elif isinstance(names, list):
+            motor_names = names
+        else:
+            motor_names = None
         if motor_names is None:
             return
 
-        feature["names"]["motors"] = (
+        converted_names = (
             motor_names[:EEF_ROT_START]
             + rotation_motor_names
             + motor_names[EEF_ROT_END:]
         )
+        if isinstance(names, dict):
+            feature["names"]["motors"] = converted_names
+        else:
+            feature["names"] = converted_names
 
     def set_train_subtask(self, train_subtask: str | None = None):
         self.train_subtask = train_subtask

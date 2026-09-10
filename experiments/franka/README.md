@@ -4,6 +4,8 @@ This pipeline uses one visual camera (`observation.images.d455`) plus a point cl
 `observation.images.d455_depth`. A wrist camera is not used. Offline conversion and online
 inference both call `pointact.utils.franka_rgbd.rgbd_to_point_cloud`, so depth scaling,
 workspace filtering, voxelization, and point selection stay identical.
+The default samples every second depth pixel before 1 cm voxelization; RGB remains 1280x720,
+and both offline conversion and online inference use the same sampling setting.
 
 ## 1. Verify the fixed-D455 calibration
 
@@ -36,7 +38,9 @@ bash experiments/franka/prepare_data.sh /path/to/lerobot_dataset
 The command reads the original LeRobot-v3 dataset, writes a LeRobot-v2.1 copy compatible with
 PointAct's pinned LeRobot version, creates `points_d455` LMDB entries keyed by
 `episode_index-frame_index`, and computes centered rot6d action statistics. It deliberately
-does not modify the source dataset.
+does not modify the source dataset. RGB-D preprocessing and temporary RGB writes each use four
+bounded worker threads by default while retaining the original frame order; use the converter's
+`--workers` and `--image-writer-threads` options when calling it directly to tune another machine.
 
 ## 3. Train
 
@@ -44,8 +48,16 @@ Download the Concerto checkpoint described in `INSTALLATION.md`, then run:
 
 ```bash
 NUM_PROCESSES=1 PER_DEVICE_BATCH_SIZE=4 EPOCHS=100 \
-  bash experiments/franka/train_pointact.sh /path/to/concerto_large.pth
+  bash experiments/franka/train_pointact.sh \
+    /path/to/concerto_large.pth \
+    /path/to/processed_dataset
 ```
+
+The second argument can point to any completed dataset produced by `prepare_data.sh`, on any
+mounted disk. The training script validates it and generates a temporary PointAct data YAML.
+Alternatively set `PROCESSED_DATASET=/path/to/processed_dataset` or provide a custom YAML with
+`DATA_CONFIG=/path/to/data.yaml`. If the second argument is omitted, the repository-local
+`robot_data/franka/small_glass_uncap_pointact` default is used.
 
 The supplied config trains a 40-step absolute EEF action chunk at the dataset's 10 Hz rate.
 It uses D455 RGB for the VLM and D455 RGB-D geometry for PointAct. Robot state and wrist images

@@ -3,6 +3,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 DATA_CONFIG="${DATA_CONFIG:-${REPO_ROOT}/experiments/franka/data-franka-d455-point.yaml}"
+PROCESSED_DATASET="${2:-${PROCESSED_DATASET:-}}"
 OUTPUT_DIR="${OUTPUT_DIR:-${REPO_ROOT}/outputs/franka-small-glass-pointact}"
 VLM="${VLM:-Qwen/Qwen2.5-VL-3B-Instruct}"
 PTV3_CKPT="${1:-${PTV3_CKPT:-}}"
@@ -11,9 +12,19 @@ PER_DEVICE_BATCH_SIZE="${PER_DEVICE_BATCH_SIZE:-4}"
 EPOCHS="${EPOCHS:-100}"
 
 if [[ -z "${PTV3_CKPT}" ]]; then
-  echo "Usage: $0 /path/to/concerto_large.pth" >&2
+  echo "Usage: $0 /path/to/concerto_large.pth [/path/to/processed_dataset]" >&2
   echo "Alternatively set the PTV3_CKPT environment variable." >&2
   exit 2
+fi
+
+GENERATED_DATA_CONFIG=""
+if [[ -n "${PROCESSED_DATASET}" ]]; then
+  GENERATED_DATA_CONFIG="$(mktemp "${TMPDIR:-/tmp}/pointact-franka-data.XXXXXX.yaml")"
+  trap 'rm -f "${GENERATED_DATA_CONFIG}"' EXIT
+  python "${REPO_ROOT}/experiments/franka/make_data_config.py" \
+    --dataset "${PROCESSED_DATASET}" \
+    --output "${GENERATED_DATA_CONFIG}"
+  DATA_CONFIG="${GENERATED_DATA_CONFIG}"
 fi
 
 cd "${REPO_ROOT}"

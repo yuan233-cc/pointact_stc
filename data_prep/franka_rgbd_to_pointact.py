@@ -8,7 +8,9 @@ the script does not import the newer LeRobot version which created it.
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import io
+from itertools import islice
 import json
 import shutil
 from pathlib import Path
@@ -81,6 +83,34 @@ def image_from_struct(value) -> np.ndarray:
     raise ValueError("depth image has neither embedded bytes nor path")
 
 
+def preprocess_frame(item, calibration: FrankaRGBDCalibration):
+    """Decode one depth PNG and build its point cloud; safe to run in a worker thread."""
+    row, rgb = item
+    depth_mm = unpack_recorded_depth(image_from_struct(row[DEPTH_KEY]))
+    return row, rgb, rgbd_to_point_cloud(rgb, depth_mm, calibration)
+
+
+def iter_preprocessed_frames(rows, rgbs, calibration, workers: int, batch_size: int):
+    """Preprocess bounded batches concurrently while preserving source frame order."""
+    rgb_count = 0
+    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="franka-rgbd") as executor:
+        while True:
+            row_batch = list(islice(rows, batch_size))
+            if not row_batch:
+                return
+            items = []
+            for row in row_batch:
+                try:
+                    rgb = next(rgbs)
+                except StopIteration as exc:
+                    raise ValueError(f"D455 RGB video ended after {rgb_count} frames") from exc
+                items.append((row, rgb))
+                rgb_count += 1
+            futures = [executor.submit(preprocess_frame, item, calibration) for item in items]
+            for future in futures:
+                yield future.result()
+
+
 def output_features(source_info: dict) -> dict:
     features = source_info["features"]
     return {
@@ -128,6 +158,7 @@ def convert(args: argparse.Namespace) -> None:
         features=output_features(info),
         use_videos=True,
         video_backend="pyav",
+        image_writer_threads=args.image_writer_threads,
     )
     points_dir = output / args.point_cloud_dirname
     point_env = lmdb.open(str(points_dir), map_size=int(args.lmdb_map_size_gb * 1024**3), subdir=True)
@@ -139,17 +170,16 @@ def convert(args: argparse.Namespace) -> None:
     converted = 0
     txn = point_env.begin(write=True)
     try:
-        for row in tqdm(rows, total=expected_total, unit="frame", desc="Converting Franka RGB-D"):
+        processed_frames = iter_preprocessed_frames(
+            rows, rgbs, calibration, args.workers, args.preprocessing_batch_size
+        )
+        for row, rgb, points in tqdm(
+            processed_frames, total=expected_total, unit="frame", desc="Converting Franka RGB-D"
+        ):
             episode = int(row["episode_index"])
             if current_episode is not None and episode != current_episode:
                 writer.save_episode()
             current_episode = episode
-            try:
-                rgb = next(rgbs)
-            except StopIteration as exc:
-                raise ValueError(f"D455 RGB video ended after {converted} frames") from exc
-            depth_mm = unpack_recorded_depth(image_from_struct(row[DEPTH_KEY]))
-            points = rgbd_to_point_cloud(rgb, depth_mm, calibration)
             point_key = f"{episode}-{int(row['frame_index'])}".encode("ascii")
             txn.put(point_key, msgpack.packb(points, use_bin_type=True))
             if converted and converted % args.commit_every == 0:
@@ -207,10 +237,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--point-cloud-dirname", default="points_d455")
     parser.add_argument("--lmdb-map-size-gb", type=float, default=64.0)
     parser.add_argument("--commit-every", type=int, default=100)
+    parser.add_argument("--workers", type=int, default=4, help="bounded RGB-D preprocessing threads")
+    parser.add_argument("--preprocessing-batch-size", type=int, default=16)
+    parser.add_argument("--image-writer-threads", type=int, default=4)
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
-    if args.lmdb_map_size_gb <= 0 or args.commit_every <= 0:
-        parser.error("--lmdb-map-size-gb and --commit-every must be positive")
+    if min(
+        args.lmdb_map_size_gb,
+        args.commit_every,
+        args.workers,
+        args.preprocessing_batch_size,
+        args.image_writer_threads,
+    ) <= 0:
+        parser.error("LMDB size, intervals, and worker counts must be positive")
     return args
 
 
