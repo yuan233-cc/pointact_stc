@@ -17,6 +17,7 @@ LOGGING_STEPS="${LOGGING_STEPS:-10}"
 REPORT_TO="${REPORT_TO:-wandb}"
 WANDB_PROJECT="${WANDB_PROJECT:-pointact-franka}"
 RUN_NAME="${RUN_NAME:-franka-small-glass-bs${PER_DEVICE_BATCH_SIZE}}"
+GRADIENT_CHECKPOINTING="${GRADIENT_CHECKPOINTING:-False}"
 
 if [[ -z "${PTV3_CKPT}" ]]; then
   echo "Usage: $0 /path/to/concerto_large.pth [/path/to/processed_dataset]" >&2
@@ -60,7 +61,7 @@ accelerate launch --num_processes "${NUM_PROCESSES}" scripts/train.py \
   --weight-decay 0.1 \
   --warmup-ratio 0.03 \
   --lr-scheduler-type cosine \
-  --gradient-checkpointing True \
+  --gradient-checkpointing "${GRADIENT_CHECKPOINTING}" \
   --save-strategy steps \
   --logging-steps "${LOGGING_STEPS}" \
   --save-steps "${SAVE_STEPS}" \

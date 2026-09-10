@@ -64,6 +64,8 @@ The defaults target one GPU with roughly 100 GB of memory: physical batch size 3
 gradient accumulation 4 (effective batch size 128), 50 epochs, and a checkpoint every 500
 optimizer steps with only the latest 3 retained. Override `PER_DEVICE_BATCH_SIZE`,
 `GRADIENT_ACCUMULATION_STEPS`, `EPOCHS`, `SAVE_STEPS`, or `SAVE_TOTAL_LIMIT` for other hardware.
+Gradient checkpointing is disabled by default on this high-memory setup; set
+`GRADIENT_CHECKPOINTING=True` if a larger batch causes an out-of-memory error.
 Training reports to Weights & Biases under project `pointact-franka`; customize it with
 `WANDB_PROJECT` and `RUN_NAME`, or set `WANDB_MODE=offline` on an offline cluster.
 
