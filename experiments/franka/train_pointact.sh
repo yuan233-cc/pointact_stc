@@ -8,8 +8,15 @@ OUTPUT_DIR="${OUTPUT_DIR:-${REPO_ROOT}/outputs/franka-small-glass-pointact}"
 VLM="${VLM:-Qwen/Qwen2.5-VL-3B-Instruct}"
 PTV3_CKPT="${1:-${PTV3_CKPT:-}}"
 NUM_PROCESSES="${NUM_PROCESSES:-1}"
-PER_DEVICE_BATCH_SIZE="${PER_DEVICE_BATCH_SIZE:-4}"
-EPOCHS="${EPOCHS:-100}"
+PER_DEVICE_BATCH_SIZE="${PER_DEVICE_BATCH_SIZE:-32}"
+GRADIENT_ACCUMULATION_STEPS="${GRADIENT_ACCUMULATION_STEPS:-4}"
+EPOCHS="${EPOCHS:-50}"
+SAVE_STEPS="${SAVE_STEPS:-250}"
+SAVE_TOTAL_LIMIT="${SAVE_TOTAL_LIMIT:-10}"
+LOGGING_STEPS="${LOGGING_STEPS:-10}"
+REPORT_TO="${REPORT_TO:-wandb}"
+WANDB_PROJECT="${WANDB_PROJECT:-pointact-franka}"
+RUN_NAME="${RUN_NAME:-franka-small-glass-bs${PER_DEVICE_BATCH_SIZE}}"
 
 if [[ -z "${PTV3_CKPT}" ]]; then
   echo "Usage: $0 /path/to/concerto_large.pth [/path/to/processed_dataset]" >&2
@@ -30,6 +37,7 @@ fi
 cd "${REPO_ROOT}"
 export PYTHONPATH="${REPO_ROOT}:${PYTHONPATH:-}"
 export DATASET_NUM_PROCESSES="${DATASET_NUM_PROCESSES:-1}"
+export WANDB_PROJECT
 
 accelerate launch --num_processes "${NUM_PROCESSES}" scripts/train.py \
   --model_class VLAEncDec3DWithActionRegressionModel \
@@ -45,7 +53,7 @@ accelerate launch --num_processes "${NUM_PROCESSES}" scripts/train.py \
   --tf32 True \
   --num-train-epochs "${EPOCHS}" \
   --per-device-train-batch-size "${PER_DEVICE_BATCH_SIZE}" \
-  --gradient-accumulation-steps 4 \
+  --gradient-accumulation-steps "${GRADIENT_ACCUMULATION_STEPS}" \
   --learning-rate 5e-5 \
   --merger-lr 5e-5 \
   --vision-lr 2e-5 \
@@ -54,10 +62,11 @@ accelerate launch --num_processes "${NUM_PROCESSES}" scripts/train.py \
   --lr-scheduler-type cosine \
   --gradient-checkpointing True \
   --save-strategy steps \
-  --logging-steps 10 \
-  --save-steps 500 \
-  --save-total-limit 3 \
-  --report-to tensorboard \
+  --logging-steps "${LOGGING_STEPS}" \
+  --save-steps "${SAVE_STEPS}" \
+  --save-total-limit "${SAVE_TOTAL_LIMIT}" \
+  --report-to "${REPORT_TO}" \
+  --run-name "${RUN_NAME}" \
   --image-aug True \
   --color-aug True \
   --use-robot-state False \

@@ -47,7 +47,8 @@ bounded worker threads by default while retaining the original frame order; use 
 Download the Concerto checkpoint described in `INSTALLATION.md`, then run:
 
 ```bash
-NUM_PROCESSES=1 PER_DEVICE_BATCH_SIZE=4 EPOCHS=100 \
+wandb login
+NUM_PROCESSES=1 PER_DEVICE_BATCH_SIZE=32 EPOCHS=50 \
   bash experiments/franka/train_pointact.sh \
     /path/to/concerto_large.pth \
     /path/to/processed_dataset
@@ -58,6 +59,13 @@ mounted disk. The training script validates it and generates a temporary PointAc
 Alternatively set `PROCESSED_DATASET=/path/to/processed_dataset` or provide a custom YAML with
 `DATA_CONFIG=/path/to/data.yaml`. If the second argument is omitted, the repository-local
 `robot_data/franka/small_glass_uncap_pointact` default is used.
+
+The defaults target one GPU with roughly 100 GB of memory: physical batch size 32,
+gradient accumulation 4 (effective batch size 128), 50 epochs, and a checkpoint every 250
+optimizer steps with the latest 10 retained. Override `PER_DEVICE_BATCH_SIZE`,
+`GRADIENT_ACCUMULATION_STEPS`, `EPOCHS`, `SAVE_STEPS`, or `SAVE_TOTAL_LIMIT` for other hardware.
+Training reports to Weights & Biases under project `pointact-franka`; customize it with
+`WANDB_PROJECT` and `RUN_NAME`, or set `WANDB_MODE=offline` on an offline cluster.
 
 The supplied config trains a 40-step absolute EEF action chunk at the dataset's 10 Hz rate.
 It uses D455 RGB for the VLM and D455 RGB-D geometry for PointAct. Robot state and wrist images

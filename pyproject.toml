@@ -61,8 +61,9 @@ dependencies = [
     "ujson>=5.11.0",
     "easydict",
 
-    # TensorBoard logging for training scripts
+    # Experiment logging for training scripts
     "tensorboardX",
+    "wandb>=0.18.0",
 ]
 # Optional dependencies
 [project.optional-dependencies]
